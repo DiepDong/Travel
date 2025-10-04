@@ -2,13 +2,36 @@ import { Button, Carousel, Col, Row, Typography, Card, Space } from 'antd';
 import { PhoneOutlined, RocketOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { tours } from '../data/tours';
+import { useState } from 'react';
 
 const { Title, Paragraph, Text } = Typography;
 
-const heroImages = [
-  '/banners/banner1.jpg',
-  '/banners/banner2.jpg',
-  'https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=1600&auto=format&fit=crop',
+// Hero slides với ảnh và thông tin tour tương ứng
+const heroSlides = [
+  {
+    image: '/images/ld3.jpg',
+    title: 'TOUR QUY NHƠN - PHÚ YÊN',
+    subtitle: 'Biển xanh – Cát trắng – Trải nghiệm tuyệt vời',
+    tour: tours.find(t => t.region === 'BinhDinh') || tours[0]
+  },
+  {
+    image: '/images/clx/1.jpg',
+    title: 'CÙ LAO XANH 1 NGÀY',
+    subtitle: 'Khám phá đảo hoang sơ với Hải Đăng 120 năm tuổi',
+    tour: tours.find(t => t.slug === 'cu-lao-xanh-1n') || tours[0]
+  },
+  {
+    image: '/images/HK_KC_EG/1.jpg',
+    title: 'KỲ CO – EO GIÓ – HÒN KHÔ',
+    subtitle: 'Bãi cát vàng óng ánh và lặn ngắm san hô',
+    tour: tours.find(t => t.slug === 'ky-co-eo-gio-hon-kho-1n') || tours[0]
+  },
+  {
+    image: '/images/Thapcham.png',
+    title: 'CỒN CHIM QUY NHƠN',
+    subtitle: 'Khám phá "ốc đảo" giữa Đầm Thị Nại',
+    tour: tours.find(t => t.slug === 'con-chim-quy-nhon-1n') || tours[0]
+  }
 ];
 
 const homeTours = tours.filter(t => t.region === 'BinhDinh');
@@ -49,25 +72,54 @@ function Section({ title, data }: { title: string; data: typeof tours }) {
 }
 
 export default function Home() {
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  // Đảm bảo heroSlides luôn có giá trị
+  const safeHeroSlides = heroSlides || [];
+
   return (
     <>
       <div className="hero">
-        <Carousel autoplay dots className="hero-carousel">
-          {heroImages.map((src, idx) => (
-            <div key={idx} className="hero-slide" style={{ backgroundImage: `url(${src})` }} />
+        <Carousel 
+          autoplay 
+          autoplaySpeed={4000}
+          dots 
+          className="hero-carousel"
+          beforeChange={(from, to) => setCurrentSlide(to)}
+          effect="fade"
+        >
+          {safeHeroSlides.map((slide, idx) => (
+            <div key={idx} className="hero-slide">
+              <img 
+                src={slide?.image || '/images/ld3.jpg'} 
+                alt={slide?.title || 'Tour'}
+                onError={(e) => {
+                  console.log('Image failed to load:', slide?.image);
+                  e.currentTarget.src = '/images/ld3.jpg';
+                }}
+              />
+            </div>
           ))}
         </Carousel>
         <div className="hero-cta">
-          <Title level={2} style={{ color: 'white', margin: 0 }}>TOUR QUY NHƠN - BÌNH ĐỊNH</Title>
-          <Paragraph style={{ color: 'white', marginTop: 8 }}>Biển xanh – Cát trắng – Trải nghiệm tuyệt vời</Paragraph>
+          <Title level={2} style={{ color: 'white', margin: 0 }}>
+            {safeHeroSlides[currentSlide]?.title || 'TOUR QUY NHƠN - PHÚ YÊN'}
+          </Title>
+          <Paragraph style={{ color: 'white', marginTop: 8 }}>
+            {safeHeroSlides[currentSlide]?.subtitle || 'Biển xanh – Cát trắng – Trải nghiệm tuyệt vời'}
+          </Paragraph>
           <Space>
-            <Button type="primary" size="large" icon={<RocketOutlined />}>Đặt tour ngay</Button>
-            <Button size="large" ghost icon={<PhoneOutlined />}>0377 28 06 97            </Button>
+            <Button type="primary" size="large" icon={<RocketOutlined />}>
+              Đặt tour ngay
+            </Button>
+            <Button size="large" ghost icon={<PhoneOutlined />}>
+              0377 28 06 97
+            </Button>
           </Space>
         </div>
       </div>
 
-      <Section title="TOUR QUY NHƠN - BÌNH ĐỊNH" data={homeTours} />
+      <Section title="TOUR QUY NHƠN - PHÚ YÊN" data={homeTours} />
 
       <div className="section alt">
         <Section title="TOUR MIỀN TRUNG & TÂY NGUYÊN" data={mtTours} />

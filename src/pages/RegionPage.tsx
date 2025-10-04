@@ -5,7 +5,7 @@ import { tours } from '../data/tours';
 const { Title, Text } = Typography;
 
 const regionNameMap: Record<string, string> = {
-  binhdinh: 'TOUR QUY NHƠN - BÌNH ĐỊNH',
+  binhdinh: 'TOUR QUY NHƠN - PHÚ YÊN',
   mientrung: 'TOUR MIỀN TRUNG & TÂY NGUYÊN',
   miennam: 'TOUR MIỀN NAM',
   mienbac: 'TOUR MIỀN BẮC',
@@ -34,9 +34,11 @@ export default function RegionPage() {
           <Col xs={24} sm={12} md={8} lg={6} key={idx}>
             <Link to={`/tour/${t.slug}`}>
               <Card hoverable cover={<div className="card-cover" style={{ backgroundImage: `url(${t.image})` }} />}>
-                <Space direction="vertical" size={4}>
-                  <Text strong>{t.title}</Text>
-                  {t.price ? <Text strong style={{ color: '#fa8c16' }}>{t.price}</Text> : <Text type="warning">Liên hệ</Text>}
+                <Space direction="vertical" size={4} style={{ height: '100%' }}>
+                  <Text strong className="tour-title">{t.title}</Text>
+                  <div className="tour-meta">
+                    {t.price ? <Text strong style={{ color: '#fa8c16' }}>{t.price}</Text> : <Text type="warning">Liên hệ</Text>}
+                  </div>
                 </Space>
               </Card>
             </Link>
@@ -46,5 +48,6 @@ export default function RegionPage() {
     </div>
   );
 }
+
 
 

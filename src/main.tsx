@@ -7,6 +7,7 @@ import Home from './pages/Home';
 import TourDetail from './pages/TourDetail';
 import RegionPage from './pages/RegionPage';
 import ContactPage from './pages/ContactPage';
+import AboutPage from './pages/AboutPage';
 import './styles.css';
 
 const router = createBrowserRouter([
@@ -15,6 +16,7 @@ const router = createBrowserRouter([
     element: <App />,
     children: [
       { index: true, element: <Home /> },
+      { path: 'gioi-thieu', element: <AboutPage /> },
       { path: 'region/:region', element: <RegionPage /> },
       { path: 'tour/:slug', element: <TourDetail /> },
       { path: 'lien-he', element: <ContactPage /> },

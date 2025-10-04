@@ -9,7 +9,7 @@ const { Title, Paragraph, Text } = Typography;
 
 const menuItems: MenuProps['items'] = [
   { key: 'home', label: <Link to="/">TRANG CHỦ</Link> },
-  { key: 'about', label: <a>GIỚI THIỆU</a> },
+  { key: 'about', label: <Link to="/gioi-thieu">GIỚI THIỆU</Link> },
   {
     key: 'domestic',
     label: (
@@ -19,16 +19,14 @@ const menuItems: MenuProps['items'] = [
       </Space>
     ),
     children: [
-      { key: 'bd', label: <Link to="/region/binhdinh">Quy Nhơn - Bình Định</Link> },
+      { key: 'bd', label: <Link to="/region/binhdinh">Quy Nhơn - Phú Yên</Link> },
       { key: 'mt', label: <Link to="/region/mientrung">Miền Trung & Tây Nguyên</Link> },
       { key: 'mn', label: <Link to="/region/miennam">Miền Nam</Link> },
       { key: 'mb', label: <Link to="/region/mienbac">Miền Bắc</Link> },
     ],
   },
-  { key: 'intl', label: <a>TOUR QUỐC TẾ</a> },
-  // Removed 'VÉ MÁY BAY' per request
   { key: 'news', label: <a>TIN TỨC</a> },
-  { key: 'lib', label: <a>THƯ VIỆN – ĐẶC SẢN</a> },
+  // Removed 'VÉ MÁY BAY' per request
   { key: 'contact', label: <Link to="/lien-he">LIÊN HỆ</Link> },
 ];
 
