@@ -91,7 +91,7 @@ export default function AdminPage() {
           </Button>
           <Popconfirm
             title="Bạn có chắc muốn xóa tour này?"
-            onConfirm={() => handleDelete(record.id)}
+            onConfirm={() => handleDelete(record.id!)}
             okText="Xóa"
             cancelText="Hủy"
           >
