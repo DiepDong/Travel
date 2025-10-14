@@ -141,7 +141,11 @@ export default function AdminPage() {
     setIsModalVisible(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id?: string) => {
+    if (!id) {
+      message.error('Không tìm thấy ID tour để xóa.');
+      return;
+    }
     console.log('AdminPage - Deleting tour with id:', id);
     deleteTour(id);
     message.success('Xóa tour thành công!');
