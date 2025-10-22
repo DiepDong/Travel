@@ -99,6 +99,38 @@ export const tours: TourItem[] = [
         imageCaption: 'Hoàng hôn trên biển'
       }
     ],
+    itineraryText: `08h45: Đến Nhơn Lý, Cano đưa quý khách di chuyển đến Đảo Kỳ Co
+→ Chiêm ngưỡng bức tranh thiên nhiên tuyệt đẹp
+→ Chụp ảnh lưu niệm
+→ Ngâm mình trong làn nước trong xanh của bãi tắm Kỳ Co
+→ Tham gia những trò chơi mạo hiểm khi leo lên cầu, ghềnh đá và nhảy xuống biển, một cảm giác thật sảng khoái và thú vị
+
+![Hình ảnh](https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=1400&auto=format&fit=crop)
+![Hình ảnh](https://images.unsplash.com/photo-1544551763-46a013bb70d5?q=80&w=1400&auto=format&fit=crop)
+
+12h00: Ăn trưa tại nhà hàng trên đảo
+→ Cua biển nướng muối ớt
+→ Tôm hùm nướng bơ tỏi
+→ Cá mú hấp gừng
+→ Rau xào tỏi
+
+![Hình ảnh](https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?q=80&w=1400&auto=format&fit=crop)
+
+14h00: Tham quan và chụp ảnh tại các điểm đẹp
+→ Điểm chụp ảnh sống ảo với view biển tuyệt đẹp
+→ Ghềnh đá tự nhiên với hình thù độc đáo
+→ Bãi cát trắng mịn như tuyết
+→ Rừng dừa xanh mát
+
+![Hình ảnh](https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1400&auto=format&fit=crop)
+![Hình ảnh](https://images.unsplash.com/photo-1559827260-dc66d52bef19?q=80&w=1400&auto=format&fit=crop)
+
+16h30: Trở về đất liền và kết thúc chương trình
+→ Lên cano trở về Nhơn Lý
+→ Nhận lại đồ cá nhân
+→ Chia tay và hẹn gặp lại
+
+![Hình ảnh](https://images.unsplash.com/photo-1544551763-46a013bb70d5?q=80&w=1400&auto=format&fit=crop)`,
     includedServices: [
       'Xe đưa đón từ Quy Nhơn',
       'Cano khứ hồi Nhơn Lý - Đảo Kỳ Co',
@@ -125,6 +157,14 @@ export const tours: TourItem[] = [
       'Thời tiết xấu có thể thay đổi lịch trình',
       'Khách hàng tự chịu trách nhiệm về sức khỏe khi tham gia các hoạt động mạo hiểm'
     ],
+    policiesText: `Trẻ em dưới 5 tuổi: Miễn phí (ngồi chung với bố mẹ)
+Trẻ em từ 5-9 tuổi: 50% giá tour
+Trẻ em từ 10 tuổi trở lên: Tính như người lớn
+Hủy tour trước 3 ngày: Hoàn 100%
+Hủy tour trước 1 ngày: Hoàn 50%
+Hủy tour trong ngày: Không hoàn tiền
+Thời tiết xấu có thể thay đổi lịch trình
+Khách hàng tự chịu trách nhiệm về sức khỏe khi tham gia các hoạt động mạo hiểm`,
     gallery: [
       'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=1400&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1544551763-46a013bb70d5?q=80&w=1400&auto=format&fit=crop',

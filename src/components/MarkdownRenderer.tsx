@@ -1,6 +1,5 @@
 import React from 'react';
 import { Image } from 'antd';
-import { imageStorage } from '../services/ImageStorage';
 
 interface MarkdownRendererProps {
   content: string;
@@ -9,8 +8,18 @@ interface MarkdownRendererProps {
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
   // Parse markdown content and render images
   const parseMarkdown = (text: string) => {
-    // Parse markdown với ImageStorage trước
-    const parsedText = imageStorage.parseMarkdown(text);
+    if (!text || text.trim() === '') {
+      return (
+        <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+          <div style={{ fontSize: '16px' }}>
+            📝 Chưa có nội dung
+          </div>
+        </div>
+      );
+    }
+
+    // Parse markdown content directly
+    const parsedText = text;
     
     const lines = parsedText.split('\n');
     const elements: React.ReactNode[] = [];

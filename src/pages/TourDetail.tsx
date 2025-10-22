@@ -52,9 +52,8 @@ export default function TourDetail() {
       if (contextTour) {
         setTour(contextTour);
       } else {
-        // Fallback to default tours
-        const defaultTour = tours.find(t => t.slug === slug);
-        setTour(defaultTour || tours[0]);
+        // No fallback to default tours - show loading or error
+        setTour(null);
       }
       setLoading(false);
     }
@@ -356,9 +355,21 @@ export default function TourDetail() {
                       border: '2px solid #1890ff'
                     }}
                   >
-        <div style={{ padding: '24px' }}>
-          <MarkdownRenderer content={tour.itineraryText || ''} />
-        </div>
+                    <div style={{ padding: '24px' }}>
+                      {tour.itineraryText ? (
+                        <MarkdownRenderer content={tour.itineraryText} />
+                      ) : (
+                        <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+                          <Text style={{ fontSize: '16px' }}>
+                            📝 Chưa có lịch trình tour
+                          </Text>
+                          <br />
+                          <Text style={{ fontSize: '14px', color: '#ccc' }}>
+                            Vui lòng liên hệ để biết thêm chi tiết
+                          </Text>
+                        </div>
+                      )}
+                    </div>
                   </Card>
                 </div>
               ),

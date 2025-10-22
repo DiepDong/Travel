@@ -1,6 +1,5 @@
 import React, { useRef } from 'react';
 import { Button, Tooltip, Upload, message } from 'antd';
-import { imageStorage } from '../services/ImageStorage';
 import { 
   BoldOutlined, 
   ItalicOutlined, 
@@ -87,14 +86,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             const reader = new FileReader();
             reader.onload = (e) => {
               const dataUrl = e.target?.result as string;
-              const imageId = imageStorage.saveImage(dataUrl, file.name);
               
               const start = textarea.selectionStart;
               const end = textarea.selectionEnd;
               const beforeText = value.substring(0, start);
               const afterText = value.substring(end);
               
-              const newText = beforeText + imageStorage.createImageMarkdown(imageId, file.name) + afterText;
+              const newText = beforeText + `![Hình ảnh](${dataUrl})` + afterText;
               onChange?.(newText);
               message.success('Upload hình ảnh thành công!');
             };
@@ -129,11 +127,10 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     name: 'file',
     action: 'https://httpbin.org/post', // Mock upload endpoint
     beforeUpload: (file: File) => {
-      // Convert file to data URL and save with short ID
+      // Convert file to data URL
       const reader = new FileReader();
       reader.onload = (e) => {
         const dataUrl = e.target?.result as string;
-        const imageId = imageStorage.saveImage(dataUrl, file.name);
         
         const textarea = textareaRef.current;
         if (textarea) {
@@ -142,7 +139,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           const beforeText = value.substring(0, start);
           const afterText = value.substring(end);
           
-          const newText = beforeText + imageStorage.createImageMarkdown(imageId, file.name) + afterText;
+          const newText = beforeText + `![Hình ảnh](${dataUrl})` + afterText;
           onChange?.(newText);
           message.success('Upload hình ảnh thành công!');
         }

@@ -16,10 +16,15 @@ body { margin: 0; background: #fff; -webkit-font-smoothing: antialiased; -moz-os
 .menu-toggle { display: none; }
 
 .hero { position: relative; }
-.hero-carousel { height: 64vh; min-height: 420px; }
+.hero-carousel { 
+  height: 64vh; 
+  min-height: 420px; 
+  max-height: 600px; /* Giới hạn chiều cao tối đa */
+}
 .hero-slide { 
   height: 64vh; 
   min-height: 420px; 
+  max-height: 600px; /* Giới hạn chiều cao tối đa */
   background-color: #f0f0f0; /* Fallback color nếu ảnh không load */
   transition: all 0.5s ease-in-out;
   overflow: hidden;
@@ -33,7 +38,7 @@ body { margin: 0; background: #fff; -webkit-font-smoothing: antialiased; -moz-os
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center;
+  object-position: center center; /* Đảm bảo ảnh được căn giữa */
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
   image-rendering: high-quality;
@@ -149,11 +154,34 @@ body { margin: 0; background: #fff; -webkit-font-smoothing: antialiased; -moz-os
 }
 .muted { color: rgba(0,0,0,.45); font-size: 12px; }
 
+/* Large screens - prevent hero from being too tall */
+@media (min-width: 1600px) {
+  .hero-carousel, .hero-slide { 
+    height: 50vh; 
+    min-height: 500px; 
+    max-height: 700px; 
+  }
+}
+
+@media (max-width: 1200px) {
+  .hero-carousel, .hero-slide { 
+    height: 60vh; 
+    min-height: 400px; 
+    max-height: 550px; 
+  }
+}
+
 @media (max-width: 992px) {
   .nav { display: none; }
   .search { width: 160px; }
   .menu-toggle { display: inline-flex; }
   .footer-grid { grid-template-columns: 1fr; }
+  
+  .hero-carousel, .hero-slide { 
+    height: 55vh; 
+    min-height: 380px; 
+    max-height: 500px; 
+  }
   
   /* Tablet Tabs Styling */
   .ant-tabs-tab { 
@@ -166,12 +194,17 @@ body { margin: 0; background: #fff; -webkit-font-smoothing: antialiased; -moz-os
 }
 
 @media (max-width: 640px) {
-  .hero-carousel, .hero-slide { height: 48vh; min-height: 300px; }
+  .hero-carousel, .hero-slide { 
+    height: 48vh; 
+    min-height: 300px; 
+    max-height: 400px; 
+  }
   .hero-slide img {
     filter: brightness(0.8) contrast(1.05) saturate(1.05);
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: center center;
   }
   .banner-cta { flex-direction: column; text-align: center; }
   .container { padding-left: 12px; padding-right: 12px; }

@@ -7,7 +7,6 @@ import { useTours } from '../contexts/TourContext';
 import dayjs from 'dayjs';
 import RichTextEditor from '../components/RichTextEditor';
 import ImageUpload from '../components/ImageUpload';
-import { imageStorage } from '../services/ImageStorage';
 
 const { Header, Content, Sider } = Layout;
 const { Title, Text } = Typography;
@@ -195,7 +194,9 @@ export default function AdminPage() {
       return;
     }
     console.log('AdminPage - Deleting tour with id:', id);
+    console.log('AdminPage - Tours before deletion:', toursData.length);
     deleteTour(id);
+    console.log('AdminPage - Tours after deletion:', toursData.length);
     message.success('Xóa tour thành công!');
     // Don't force refresh - let the context handle the update
   };
@@ -500,14 +501,37 @@ export default function AdminPage() {
                 <Button 
                   icon={<ReloadOutlined />}
                   onClick={() => {
-                    localStorage.removeItem('travel_tours_data');
-                    localStorage.removeItem('tours');
-                    forceRefresh();
-                    message.success('Đã xóa dữ liệu bộ nhớ trình duyệt và làm mới!');
+                    refreshTours();
+                    message.success('Đã làm mới dữ liệu!');
                   }}
                   size="large"
                 >
                   Làm mới dữ liệu
+                </Button>
+                <Button 
+                  icon={<DeleteOutlined />}
+                  onClick={() => {
+                    localStorage.removeItem('travel_tours_data');
+                    localStorage.removeItem('tours');
+                    refreshTours();
+                    message.success('Đã xóa tất cả dữ liệu tour!');
+                  }}
+                  size="large"
+                  danger
+                >
+                  Xóa tất cả dữ liệu
+                </Button>
+                <Button 
+                  icon={<PlusOutlined />}
+                  onClick={() => {
+                    TourDataManager.saveTours(tours);
+                    refreshTours();
+                    message.success('Đã khởi tạo dữ liệu mặc định!');
+                  }}
+                  size="large"
+                  type="default"
+                >
+                  Khởi tạo dữ liệu mặc định
                 </Button>
                 <Button 
                   type="primary" 

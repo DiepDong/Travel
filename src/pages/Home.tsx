@@ -9,9 +9,9 @@ import { useMemo } from 'react';
 const { Title, Paragraph, Text } = Typography;
 
 const heroImages = [
-  '/banners/banner1.jpg',
-  '/banners/banner2.jpg',
-  'https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=1600&auto=format&fit=crop',
+  '/Hero/gen-n-1.jpg',
+  '/Hero/gen-n-2.jpg',
+  '/Hero/gen-n-3.jpg',
 ];
 
 function Section({ title, data }: { title: string; data: typeof tours }) {
@@ -57,8 +57,8 @@ export default function Home() {
   // Auto-refresh tours when they change (temporarily disabled)
   // useAutoRefreshTours();
 
-  // Use context tours if available, fallback to default tours
-  const allTours = contextTours.length > 0 ? contextTours : tours;
+  // Always use context tours, never fallback to default tours
+  const allTours = contextTours;
   
   // Memoize filtered tours for performance
   const homeTours = useMemo(() => allTours.filter(t => t.region === 'BinhDinh'), [allTours]);

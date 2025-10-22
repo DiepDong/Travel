@@ -25,8 +25,8 @@ export function TourProvider({ children }: { children: ReactNode }) {
       const savedTours = TourDataManager.loadTours();
       console.log('RefreshTours - Loaded tours from localStorage:', savedTours.length);
       
-      // Simply set the tours from localStorage without adding default tours
-      // This prevents deleted tours from being restored
+      // Always use tours from localStorage, even if empty
+      // This allows users to delete all tours if they want
       setTours(savedTours);
     } catch (error) {
       console.error('Error loading tours:', error);
@@ -52,11 +52,12 @@ export function TourProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteTour = (id: string) => {
-    console.log('Deleting tour with id:', id);
+    console.log('TourContext - Deleting tour with id:', id);
+    console.log('TourContext - Tours before deletion:', tours.length);
     TourDataManager.deleteTour(id);
     setTours(prev => {
       const filtered = prev.filter(t => t.id !== id);
-      console.log('Tours after deletion:', filtered.length);
+      console.log('TourContext - Tours after deletion:', filtered.length);
       return filtered;
     });
     // Notify other components
@@ -75,6 +76,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // Always load from localStorage, never auto-initialize with default tours
     refreshTours();
 
     // Listen for storage changes from other tabs/windows
@@ -85,17 +87,10 @@ export function TourProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    // Listen for window focus to refresh data (disabled for now)
-    // const handleFocus = () => {
-    //   refreshTours();
-    // };
-
     window.addEventListener('storage', handleStorageChange);
-    // window.addEventListener('focus', handleFocus);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      // window.removeEventListener('focus', handleFocus);
     };
   }, []);
 

@@ -34,27 +34,15 @@ export default function RegionPage() {
   // useAutoRefreshTours();
 
   useEffect(() => {
-    // Always use fresh data from context
-    if (contextTours.length > 0) {
-      setToursList(contextTours.filter(t => t.region === key));
-    } else {
-      setToursList(tours.filter(t => t.region === key));
-    }
+    // Always use context tours, never fallback to default tours
+    setToursList(contextTours.filter(t => t.region === key));
   }, [region, key, contextTours]);
 
   // Force refresh when component mounts or when navigating
   useEffect(() => {
-    // Refresh tours when component mounts
-    const refreshTours = () => {
-      if (contextTours.length > 0) {
-        setToursList(contextTours.filter(t => t.region === key));
-      } else {
-        setToursList(tours.filter(t => t.region === key));
-      }
-    };
-    
-    refreshTours();
-  }, [region, key]);
+    // Always use context tours, never fallback to default tours
+    setToursList(contextTours.filter(t => t.region === key));
+  }, [region, key, contextTours]);
 
   return (
     <div className="section container">
