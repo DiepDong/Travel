@@ -68,7 +68,7 @@ export default function Home() {
 
   // Create sections array with data and styling info
   const sections = [
-    { title: "TOUR QUY NHƠN - BÌNH ĐỊNH", data: homeTours, alt: false },
+    { title: "TOUR BÌNH ĐỊNH - PHÚ YÊN", data: homeTours, alt: false },
     { title: "TOUR MIỀN TRUNG & TÂY NGUYÊN", data: mtTours, alt: true },
     { title: "TOUR MIỀN NAM", data: mnTours, alt: false },
     { title: "TOUR MIỀN BẮC", data: mbTours, alt: true },
@@ -79,11 +79,29 @@ export default function Home() {
       <div className="hero">
         <Carousel autoplay dots className="hero-carousel">
           {heroImages.map((src, idx) => (
-            <div key={idx} className="hero-slide" style={{ backgroundImage: `url(${src})` }} />
+            <div key={idx} className="hero-slide">
+              <img 
+                src={src} 
+                alt={`Hero image ${idx + 1}`}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  objectPosition: 'center center'
+                }}
+                onError={(e) => {
+                  console.error('Failed to load image:', src);
+                  e.currentTarget.style.display = 'none';
+                }}
+                onLoad={() => {
+                  console.log('Successfully loaded image:', src);
+                }}
+              />
+            </div>
           ))}
         </Carousel>
         <div className="hero-cta">
-          <Title level={2} style={{ color: 'white', margin: 0 }}>TOUR QUY NHƠN - BÌNH ĐỊNH</Title>
+          <Title level={2} style={{ color: 'white', margin: 0 }}>TOUR BÌNH ĐỊNH - PHÚ YÊN</Title>
           <Paragraph style={{ color: 'white', marginTop: 8 }}>Biển xanh – Cát trắng – Trải nghiệm tuyệt vời</Paragraph>
           <Space>
             <Button type="primary" size="large" icon={<RocketOutlined />}>Đặt tour ngay</Button>
