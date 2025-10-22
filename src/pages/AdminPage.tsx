@@ -1,10 +1,13 @@
-import { Layout, Menu, Card, Button, Table, Space, Tag, Modal, Form, Input, Select, Upload, message, Popconfirm, Typography, Row, Col, Divider, UploadProps, TimePicker } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, UploadOutlined, SaveOutlined, CloseOutlined, DownloadOutlined, ImportOutlined, MinusCircleOutlined, ReloadOutlined, FileTextOutlined } from '@ant-design/icons';
+import { Layout, Menu, Card, Button, Table, Space, Tag, Modal, Form, Input, Select, Upload, message, Popconfirm, Typography, Row, Col, Divider, UploadProps, TimePicker, Tabs, Tooltip } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, UploadOutlined, SaveOutlined, CloseOutlined, DownloadOutlined, ImportOutlined, MinusCircleOutlined, ReloadOutlined, FileTextOutlined, CameraOutlined, BoldOutlined, ItalicOutlined, UnorderedListOutlined, OrderedListOutlined, AlignLeftOutlined, AlignCenterOutlined, AlignRightOutlined, LinkOutlined, PictureOutlined, SettingOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
 import { tours, TourItem, ItineraryItem, ItineraryEntry } from '../data/tours';
 import { TourDataManager } from '../data/TourDataManager';
 import { useTours } from '../contexts/TourContext';
 import dayjs from 'dayjs';
+import RichTextEditor from '../components/RichTextEditor';
+import ImageUpload from '../components/ImageUpload';
+import { imageStorage } from '../services/ImageStorage';
 
 const { Header, Content, Sider } = Layout;
 const { Title, Text } = Typography;
@@ -16,6 +19,8 @@ export default function AdminPage() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingTour, setEditingTour] = useState<TourItem | null>(null);
   const [form] = Form.useForm();
+  const [collapsed, setCollapsed] = useState(false);
+  const [activeTab, setActiveTab] = useState('visual');
 
   const columns = [
     {
@@ -117,26 +122,69 @@ export default function AdminPage() {
 
   const handleEdit = (tour: TourItem) => {
     setEditingTour(tour);
+    
+    // Sử dụng itineraryText nếu có, nếu không thì convert từ itinerary cũ
+    let itineraryText = '';
+    
+    if (tour.itineraryText) {
+      // Tour mới có itineraryText
+      itineraryText = tour.itineraryText;
+    } else {
+      // Tour cũ, convert từ itinerary
+      itineraryText = tour.itinerary.map((item: any) => {
+        if (typeof item === 'string') {
+          return item;
+        }
+        
+        let result = '';
+        
+        // Add time and activity if both exist
+        if (item.time && item.activity) {
+          result += `${item.time}: ${item.activity}`;
+        } else if (item.activity) {
+          result += item.activity;
+        }
+        
+        // Add description with arrows
+        if (item.description) {
+          const descriptionLines = item.description.split('\n').filter((line: string) => line.trim());
+          descriptionLines.forEach((line: string) => {
+            if (line.trim()) {
+              result += `\n→ ${line.trim()}`;
+            }
+          });
+        }
+        
+        // Add images if exist
+        if (item.images && item.images.length > 0) {
+          item.images.forEach((image: string) => {
+            result += `\n![Hình ảnh](${image})`;
+          });
+        }
+        
+        return result;
+      }).join('\n\n');
+    }
+    
+    // Sử dụng policiesText nếu có, nếu không thì convert từ policies cũ
+    let policiesMarkdown = '';
+    
+    if (tour.policiesText) {
+      // Tour mới có policiesText
+      policiesMarkdown = tour.policiesText;
+    } else {
+      // Tour cũ, convert từ policies
+      policiesMarkdown = tour.policies.join('\n');
+    }
+    
     form.setFieldsValue({
       ...tour,
-      itinerary: tour.itinerary.map((raw: ItineraryEntry) => {
-        if (typeof raw === 'string') {
-          return {
-            activity: raw,
-            images: '',
-            time: undefined
-          };
-        }
-        return {
-          ...raw,
-          images: raw.images?.join('\n') || '',
-          time: raw.time ? dayjs(raw.time, 'HH:mm') : undefined
-        };
-      }), // Normalize legacy string items; convert images array to string and time to dayjs
+      image: tour.image ? [tour.image] : [],
+      itineraryText: itineraryText,
+      policies: policiesMarkdown,
       includedServices: tour.includedServices.join('\n'),
       excludedServices: tour.excludedServices.join('\n'),
-      policies: tour.policies.join('\n'),
-      gallery: tour.gallery?.join('\n') || ''
+      gallery: tour.gallery || []
     });
     setIsModalVisible(true);
   };
@@ -156,25 +204,84 @@ export default function AdminPage() {
     try {
       const values = await form.validateFields();
       
+      // Convert Markdown content to itinerary format
+      const itineraryMarkdown = values.itineraryText || '';
+      
+      // Extract images from markdown
+      const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+      const images: string[] = [];
+      let match;
+      while ((match = imageRegex.exec(itineraryMarkdown)) !== null) {
+        images.push(match[2]); // URL of the image
+      }
+      
+      // Remove images from markdown for processing
+      const itineraryWithoutImages = itineraryMarkdown.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '');
+      const itineraryLines = itineraryWithoutImages.split('\n').filter((line: string) => line.trim());
+      
+      // Create itinerary items with time and description
+      const itinerary = itineraryLines.map((line: string, index: number) => {
+        // Check if line starts with time pattern (HH:mm:)
+        const timeMatch = line.match(/^(\d{1,2}:\d{2}):\s*(.+)$/);
+        if (timeMatch) {
+          return {
+            time: timeMatch[1],
+            activity: timeMatch[2],
+            description: '',
+            images: images.length > 0 ? images : []
+          };
+        }
+        
+        // Check if line starts with arrow (→)
+        if (line.trim().startsWith('→')) {
+          return {
+            time: '',
+            activity: '',
+            description: line.trim().substring(1).trim(),
+            images: []
+          };
+        }
+        
+        // Regular line
+        return {
+          time: '',
+          activity: line.trim(),
+          description: '',
+          images: []
+        };
+      });
+      
+      // Convert Markdown content to simple text for policies
+      const policiesMarkdown = values.policies || '';
+      const policiesText = policiesMarkdown
+        .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold
+        .replace(/\*(.*?)\*/g, '$1') // Remove italic
+        .replace(/<u>(.*?)<\/u>/g, '$1') // Remove underline
+        .replace(/\[(.*?)\]\(.*?\)/g, '$1') // Remove links
+        .replace(/!\[(.*?)\]\(.*?\)/g, '$1') // Remove images
+        .replace(/^\s*[•\-\*\+]\s*/gm, '') // Remove bullet points
+        .replace(/^\s*\d+\.\s*/gm, '') // Remove numbered lists
+        .trim();
+      
+      const policiesLines = policiesText.split('\n').filter((item: string) => item.trim());
+      
       const tourData: TourItem = {
         id: editingTour?.id || Date.now().toString(),
         slug: values.slug,
         title: values.title,
         region: values.region,
-        image: values.image,
+        image: Array.isArray(values.image) ? values.image[0] : values.image,
         price: values.price,
         duration: values.duration,
         transport: values.transport,
         summary: '', // Empty summary since we removed the field
-        itinerary: values.itinerary ? values.itinerary.map((item: any) => ({
-          ...item,
-          images: item.images ? item.images.split('\n').filter((img: string) => img.trim()) : [],
-          time: item.time ? item.time.format('HH:mm') : item.time
-        })) : [], // Process images from string to array and time from dayjs to string
-        includedServices: values.includedServices.split('\n').filter((item: string) => item.trim()),
-        excludedServices: values.excludedServices.split('\n').filter((item: string) => item.trim()),
-        policies: values.policies.split('\n').filter((item: string) => item.trim()),
-        gallery: values.gallery ? values.gallery.split('\n').filter((item: string) => item.trim()) : [],
+        itinerary: itinerary,
+        itineraryText: values.itineraryText, // Save raw markdown text
+        includedServices: values.includedServices ? values.includedServices.split('\n').filter((item: string) => item.trim()) : [],
+        excludedServices: values.excludedServices ? values.excludedServices.split('\n').filter((item: string) => item.trim()) : [],
+        policies: policiesLines,
+        policiesText: values.policies, // Save raw markdown text
+        gallery: Array.isArray(values.gallery) ? values.gallery : [],
         createdAt: editingTour?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -232,36 +339,144 @@ export default function AdminPage() {
 
   const menuItems = [
     {
+      key: 'posts',
+      label: 'Bài viết',
+      icon: <FileTextOutlined />,
+    },
+    {
       key: 'tours',
-      label: 'Quản lý Tour',
+      label: 'Quản lý tour',
+      icon: <SettingOutlined />,
+      children: [
+        {
+          key: 'all-tours',
+          label: 'Tất cả tour',
+        },
+        {
+          key: 'add-tour',
+          label: 'Thêm mới tour',
+        },
+        {
+          key: 'categories',
+          label: 'Danh mục',
+        },
+      ],
+    },
+    {
+      key: 'copy-protection',
+      label: 'Copy Protection',
+      icon: <SettingOutlined />,
+    },
+    {
+      key: 'media-library',
+      label: 'Thư viện ảnh',
+      icon: <PictureOutlined />,
+    },
+    {
+      key: 'flight-tickets',
+      label: 'Vé máy bay',
+      icon: <SettingOutlined />,
+    },
+    {
+      key: 'video',
+      label: 'Video',
+      icon: <PictureOutlined />,
+    },
+    {
+      key: 'media',
+      label: 'Media',
+      icon: <PictureOutlined />,
+    },
+    {
+      key: 'pages',
+      label: 'Trang',
+      icon: <FileTextOutlined />,
+    },
+    {
+      key: 'menu-management',
+      label: 'Quản lý menu',
+      icon: <SettingOutlined />,
     },
     {
       key: 'settings',
       label: 'Cài đặt',
+      icon: <SettingOutlined />,
+    },
+    {
+      key: 'theme-config',
+      label: 'Cấu hình theme',
+      icon: <SettingOutlined />,
+    },
+    {
+      key: 'seo',
+      label: 'Yoast SEO',
+      icon: <SettingOutlined />,
     },
   ];
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Sider width={250} style={{ background: '#fff' }}>
-        <div style={{ padding: '16px', borderBottom: '1px solid #f0f0f0' }}>
-          <Title level={4} style={{ margin: 0, color: '#1890ff' }}>
-            🛠️ Admin Panel
+    <Layout style={{ minHeight: '100vh' }} className="admin-panel">
+      {/* Dark Sidebar */}
+      <Sider 
+        width={collapsed ? 80 : 250} 
+        className="admin-sidebar"
+        collapsed={collapsed}
+      >
+        <div style={{ 
+          padding: '20px', 
+          borderBottom: '1px solid #3c434a',
+          textAlign: 'center'
+        }}>
+          <Title level={4} style={{ 
+            margin: 0, 
+            color: '#fff',
+            fontSize: collapsed ? '16px' : '18px'
+          }}>
+            {collapsed ? '🛠️' : '🛠️ Admin Panel'}
           </Title>
         </div>
+        
         <Menu
           mode="inline"
           defaultSelectedKeys={['tours']}
+          defaultOpenKeys={['tours']}
           items={menuItems}
-          style={{ border: 'none' }}
+          style={{ 
+            border: 'none',
+            background: '#23282d',
+            color: '#fff'
+          }}
+          theme="dark"
         />
+        
+        <div style={{ 
+          position: 'absolute', 
+          bottom: '20px', 
+          left: '20px', 
+          right: '20px' 
+        }}>
+          <Button
+            type="text"
+            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            onClick={() => setCollapsed(!collapsed)}
+            style={{ 
+              color: '#fff',
+              width: '100%',
+              height: '40px',
+              border: '1px solid #3c434a'
+            }}
+          >
+            {!collapsed && 'Thu gọn Menu'}
+          </Button>
+        </div>
       </Sider>
       
       <Layout>
-        <Header style={{ background: '#fff', padding: '0 24px', borderBottom: '1px solid #f0f0f0' }}>
+        {/* White Header */}
+        <Header className="admin-header" style={{ padding: '0 24px' }}>
           <Row justify="space-between" align="middle">
             <Col>
-              <Title level={3} style={{ margin: 0 }}>
+              <Title level={3} style={{ margin: 0, color: '#333' }}>
                 Quản lý Tour
               </Title>
             </Col>
@@ -285,9 +500,7 @@ export default function AdminPage() {
                 <Button 
                   icon={<ReloadOutlined />}
                   onClick={() => {
-                    // Clear correct storage key and reload defaults
                     localStorage.removeItem('travel_tours_data');
-                    // Also clear legacy key if present
                     localStorage.removeItem('tours');
                     forceRefresh();
                     message.success('Đã xóa dữ liệu bộ nhớ trình duyệt và làm mới!');
@@ -297,96 +510,22 @@ export default function AdminPage() {
                   Làm mới dữ liệu
                 </Button>
                 <Button 
-                  icon={<EyeOutlined />}
-                  onClick={() => {
-                    console.log('Current tours:', toursData);
-                    console.log('LocalStorage tours:', TourDataManager.loadTours());
-                    message.info(`Hiện có ${toursData.length} tour trong hệ thống`);
-                  }}
-                  size="large"
-                >
-                  Kiểm tra dữ liệu
-                </Button>
-                <Button 
                   type="primary" 
                   icon={<PlusOutlined />}
                   onClick={handleAdd}
                   size="large"
+                  className="admin-primary-btn"
                 >
                   ➕ Thêm tour mới
-                </Button>
-                <Button 
-                  icon={<FileTextOutlined />}
-                  onClick={() => {
-                    // Tạo tour mẫu nhanh
-                    const quickTour = {
-                      slug: `tour-mau-${Date.now()}`,
-                      title: 'Tour mẫu - Chỉnh sửa tên',
-                      region: 'BinhDinh',
-                      image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=1400&auto=format&fit=crop',
-                      price: 'Liên hệ',
-                      duration: '1 ngày',
-                      transport: 'Xe ô tô',
-                      itinerary: [
-                        {
-                          time: dayjs('08:00', 'HH:mm'),
-                          activity: 'Khởi hành',
-                          description: 'Đón khách tại điểm hẹn'
-                        },
-                        {
-                          time: dayjs('10:00', 'HH:mm'),
-                          activity: 'Tham quan điểm đến',
-                          description: 'Khám phá địa điểm nổi tiếng'
-                        },
-                        {
-                          time: dayjs('12:00', 'HH:mm'),
-                          activity: 'Ăn trưa',
-                          description: 'Thưởng thức đặc sản địa phương'
-                        },
-                        {
-                          time: dayjs('14:00', 'HH:mm'),
-                          activity: 'Tiếp tục tham quan',
-                          description: 'Khám phá thêm các điểm đến'
-                        },
-                        {
-                          time: dayjs('16:00', 'HH:mm'),
-                          activity: 'Kết thúc tour',
-                          description: 'Trở về điểm đón ban đầu'
-                        }
-                      ],
-                      includedServices: [
-                        'Xe đưa đón',
-                        'Hướng dẫn viên',
-                        'Vé vào cổng',
-                        'Bảo hiểm du lịch'
-                      ],
-                      excludedServices: [
-                        'Ăn uống',
-                        'Chi phí cá nhân',
-                        'Thuế VAT'
-                      ],
-                      policies: [
-                        'Trẻ em 0-4 tuổi: Miễn phí',
-                        'Trẻ em 5-9 tuổi: 50% giá vé',
-                        'Trẻ em từ 10 tuổi: 100% như người lớn'
-                      ]
-                    };
-                    
-                    form.setFieldsValue(quickTour);
-                    setIsModalVisible(true);
-                    message.success('Đã tạo tour mẫu! Bạn chỉ cần chỉnh sửa thông tin.');
-                  }}
-                  size="large"
-                >
-                  🚀 Tạo tour mẫu nhanh
                 </Button>
               </Space>
             </Col>
           </Row>
         </Header>
         
-        <Content style={{ padding: '24px', background: '#f5f5f5' }}>
-          <Card>
+        {/* Main Content */}
+        <Content className="admin-content" style={{ padding: '24px' }}>
+          <Card className="admin-card">
             <Table
               columns={columns}
               dataSource={toursData}
@@ -405,7 +544,7 @@ export default function AdminPage() {
       <Modal
         title={
           <div style={{ textAlign: 'center' }}>
-            <Title level={3} style={{ margin: 0, color: '#1890ff' }}>
+            <Title level={3} style={{ margin: 0, color: '#dc3232' }}>
               {editingTour ? '📝 Chỉnh sửa Tour' : '➕ Thêm Tour Mới'}
             </Title>
           </div>
@@ -415,13 +554,14 @@ export default function AdminPage() {
           setIsModalVisible(false);
           form.resetFields();
         }}
-        width={1000}
+        width={1200}
         style={{ top: 20 }}
+        className="admin-modal"
         footer={[
           <Button key="cancel" onClick={() => setIsModalVisible(false)}>
             <CloseOutlined /> Hủy
           </Button>,
-          <Button key="save" type="primary" onClick={handleSave}>
+          <Button key="save" type="primary" onClick={handleSave} className="admin-primary-btn">
             <SaveOutlined /> {editingTour ? 'Cập nhật' : 'Thêm mới'}
           </Button>,
         ]}
@@ -433,343 +573,183 @@ export default function AdminPage() {
             region: 'BinhDinh',
           }}
         >
-          <Divider orientation="left" style={{ color: '#1890ff', fontWeight: 'bold' }}>
-            📝 Thông tin cơ bản
-          </Divider>
+          {/* Single Form Card */}
+          <Card style={{ borderRadius: '8px' }}>
+            <Title level={3} style={{ color: '#333', marginBottom: '24px', textAlign: 'center' }}>
+              📝 Thông tin Tour
+            </Title>
+            
+            {/* Basic Info Row */}
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item
+                  name="title"
+                  label="Tên tour"
+                  rules={[{ required: true, message: 'Vui lòng nhập tên tour!' }]}
+                >
+                  <Input placeholder="VD: Đảo Lý Sơn 2N1Đ" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item
+                  name="slug"
+                  label="Slug (URL)"
+                  rules={[{ required: true, message: 'Vui lòng nhập slug!' }]}
+                >
+                  <Input placeholder="dao-ly-son-2n1d" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item
+                  name="region"
+                  label="Khu vực"
+                  rules={[{ required: true, message: 'Vui lòng chọn khu vực!' }]}
+                >
+                  <Select>
+                    <Option value="BinhDinh">Bình Định</Option>
+                    <Option value="MienTrungTayNguyen">Miền Trung & Tây Nguyên</Option>
+                    <Option value="MienNam">Miền Nam</Option>
+                    <Option value="MienBac">Miền Bắc</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="title"
-                label={<span style={{ fontWeight: 'bold', color: '#333' }}>🏷️ Tên tour</span>}
-                rules={[{ required: true, message: 'Vui lòng nhập tên tour!' }]}
-              >
-                <Input 
-                  placeholder="VD: Đảo Lý Sơn 2N1Đ" 
-                  style={{ borderRadius: '6px' }}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="slug"
-                label={<span style={{ fontWeight: 'bold', color: '#333' }}>🔗 Slug (URL)</span>}
-                rules={[{ required: true, message: 'Vui lòng nhập slug!' }]}
-              >
-                <Input 
-                  placeholder="dao-ly-son-2n1d" 
-                  style={{ borderRadius: '6px' }}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
+            <Row gutter={16}>
+              <Col span={6}>
+                <Form.Item
+                  name="duration"
+                  label="Thời gian"
+                  rules={[{ required: true, message: 'Vui lòng nhập thời gian!' }]}
+                >
+                  <Input placeholder="VD: 2 ngày 1 đêm" />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item
+                  name="transport"
+                  label="Phương tiện"
+                  rules={[{ required: true, message: 'Vui lòng nhập phương tiện!' }]}
+                >
+                  <Input placeholder="VD: Ô tô + Máy bay" />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item
+                  name="price"
+                  label="Giá tour"
+                >
+                  <Input placeholder="VD: 1,500,000đ/khách" />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item
+                  name="image"
+                  label="Hình ảnh chính"
+                  rules={[{ required: true, message: 'Vui lòng chọn hình ảnh chính!' }]}
+                >
+                  <ImageUpload 
+                    maxCount={1}
+                    placeholder="Chọn hình ảnh chính cho tour"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
 
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item
-                name="region"
-                label={<span style={{ fontWeight: 'bold', color: '#333' }}>🗺️ Khu vực</span>}
-                rules={[{ required: true, message: 'Vui lòng chọn khu vực!' }]}
-              >
-                <Select style={{ borderRadius: '6px' }}>
-                  <Option value="BinhDinh">Bình Định</Option>
-                  <Option value="MienTrungTayNguyen">Miền Trung & Tây Nguyên</Option>
-                  <Option value="MienNam">Miền Nam</Option>
-                  <Option value="MienBac">Miền Bắc</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="duration"
-                label={<span style={{ fontWeight: 'bold', color: '#333' }}>⏱️ Thời gian</span>}
-                rules={[{ required: true, message: 'Vui lòng nhập thời gian!' }]}
-              >
-                <Input 
-                  placeholder="VD: 2 ngày 1 đêm" 
-                  style={{ borderRadius: '6px' }}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="transport"
-                label={<span style={{ fontWeight: 'bold', color: '#333' }}>🚗 Phương tiện</span>}
-                rules={[{ required: true, message: 'Vui lòng nhập phương tiện!' }]}
-              >
-                <Input 
-                  placeholder="VD: Ô tô + Máy bay" 
-                  style={{ borderRadius: '6px' }}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
+            {/* Lịch trình tour */}
+            <Form.Item
+              name="itineraryText"
+              label="📋 Lịch trình tour"
+              rules={[{ required: true, message: 'Vui lòng nhập lịch trình tour!' }]}
+            >
+              <RichTextEditor 
+                placeholder={`Nhập lịch trình tour theo format sau:
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="price"
-                label={<span style={{ fontWeight: 'bold', color: '#333' }}>💰 Giá tour</span>}
-              >
-                <Input 
-                  placeholder="VD: 1,500,000đ/khách (để trống nếu liên hệ)" 
-                  style={{ borderRadius: '6px' }}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="image"
-                label={<span style={{ fontWeight: 'bold', color: '#333' }}>🖼️ Hình ảnh chính</span>}
-                rules={[{ required: true, message: 'Vui lòng nhập URL hình ảnh!' }]}
-              >
-                <Input 
-                  placeholder="URL hình ảnh chính của tour" 
-                  style={{ borderRadius: '6px' }}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
+08h45: Đến Nhơn Lý, Cano đưa quý khách di chuyển đến Đảo Kỳ Co
+→ Chiêm ngưỡng bức tranh thiên nhiên tuyệt đẹp
+→ Chụp ảnh lưu niệm
+→ Ngâm mình trong làn nước trong xanh của bãi tắm Kỳ Co
+→ Tham gia những trò chơi mạo hiểm khi leo lên cầu, ghềnh đá và nhảy xuống biển
 
-          <Divider orientation="left" style={{ color: '#1890ff', fontWeight: 'bold' }}>
-            📋 Lịch trình tour chi tiết
-          </Divider>
+12h00: Ăn trưa tại nhà hàng trên đảo
+→ Cua biển nướng muối ớt
+→ Tôm hùm nướng bơ tỏi
+→ Cá mú hấp gừng
+→ Rau xào tỏi
 
-          <Form.Item
-            name="itinerary"
-            rules={[{ required: true, message: 'Vui lòng nhập lịch trình!' }]}
-          >
-            <Form.List name="itinerary">
-              {(fields, { add, remove }) => (
-                <>
-                  {fields.map(({ key, name, ...restField }) => (
-                    <Card 
-                      key={key} 
-                      size="small" 
-                      style={{ 
-                        marginBottom: 20, 
-                        background: '#fafafa',
-                        border: '1px solid #e6f7ff',
-                        borderRadius: '8px'
-                      }}
-                      title={
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ color: '#1890ff', fontWeight: 'bold' }}>
-                            Hoạt động #{name + 1}
-                          </span>
-                          <Button 
-                            type="text" 
-                            danger 
-                            size="small"
-                            icon={<MinusCircleOutlined />} 
-                            onClick={() => remove(name)}
-                          >
-                            Xóa
-                          </Button>
-                        </div>
-                      }
-                    >
-                     {/* Thông tin cơ bản - chỉ những trường bắt buộc */}
-                     <Row gutter={16}>
-                       <Col span={6}>
-                         <Form.Item
-                           {...restField}
-                           name={[name, 'time']}
-                           label={<span style={{ fontWeight: 'bold', color: '#333' }}>⏰ Thời gian</span>}
-                           rules={[{ required: true, message: 'Nhập thời gian!' }]}
-                         >
-                           <TimePicker
-                             format="HH:mm"
-                             placeholder="Chọn thời gian"
-                             style={{ width: '100%', borderRadius: '6px' }}
-                           />
-                         </Form.Item>
-                       </Col>
-                       <Col span={18}>
-                         <Form.Item
-                           {...restField}
-                           name={[name, 'activity']}
-                           label={<span style={{ fontWeight: 'bold', color: '#333' }}>🎯 Hoạt động</span>}
-                           rules={[{ required: true, message: 'Nhập hoạt động!' }]}
-                         >
-                           <Input
-                             placeholder="VD: Ăn sáng, Tham quan chùa, Check-in..."
-                             style={{ borderRadius: '6px' }}
-                           />
-                         </Form.Item>
-                       </Col>
-                     </Row>
+14h00: Tham quan và chụp ảnh tại các điểm đẹp
+→ Điểm chụp ảnh sống ảo với view biển tuyệt đẹp
+→ Ghềnh đá tự nhiên với hình thù độc đáo
+→ Bãi cát trắng mịn như tuyết`}
+                height={300}
+              />
+            </Form.Item>
 
-                     {/* Mô tả chi tiết - tùy chọn */}
-                     <Form.Item
-                       {...restField}
-                       name={[name, 'description']}
-                       label={<span style={{ fontWeight: 'bold', color: '#333' }}>📝 Mô tả chi tiết (tùy chọn)</span>}
-                     >
-                       <TextArea
-                         rows={2}
-                         placeholder="Mô tả ngắn gọn về hoạt động..."
-                         style={{ borderRadius: '6px' }}
-                       />
-                     </Form.Item>
+            {/* Dịch vụ bao gồm */}
+            <Form.Item
+              name="includedServices"
+              label="✅ Dịch vụ bao gồm"
+              rules={[{ required: true, message: 'Vui lòng nhập dịch vụ bao gồm!' }]}
+            >
+              <TextArea 
+                rows={4}
+                placeholder={`Mỗi dòng là một dịch vụ được bao gồm
+VD:
+- Vé tham quan các điểm du lịch
+- HDV chuyên nghiệp
+- Bảo hiểm du lịch
+- Xe đưa đón`}
+                style={{ fontSize: '14px', lineHeight: '1.6' }}
+              />
+            </Form.Item>
 
-                     {/* Hình ảnh - tùy chọn */}
-                     <Form.Item
-                       {...restField}
-                       name={[name, 'images']}
-                       label={<span style={{ fontWeight: 'bold', color: '#333' }}>🖼️ Hình ảnh (tùy chọn - mỗi dòng 1 URL)</span>}
-                     >
-                       <TextArea
-                         rows={2}
-                         placeholder="URL hình ảnh 1&#10;URL hình ảnh 2"
-                         style={{ borderRadius: '6px' }}
-                       />
-                     </Form.Item>
+            {/* Dịch vụ không bao gồm */}
+            <Form.Item
+              name="excludedServices"
+              label="❌ Dịch vụ không bao gồm"
+              rules={[{ required: true, message: 'Vui lòng nhập dịch vụ không bao gồm!' }]}
+            >
+              <TextArea 
+                rows={4}
+                placeholder={`Mỗi dòng là một dịch vụ không được bao gồm
+VD:
+- Vé máy bay khứ hồi
+- Chi phí cá nhân
+- Thuế VAT
+- Đồ uống có cồn`}
+                style={{ fontSize: '14px', lineHeight: '1.6' }}
+              />
+            </Form.Item>
 
-                     {/* Các trường nâng cao - có thể ẩn/hiện */}
-                     <div style={{ marginTop: '16px', padding: '12px', background: '#f5f5f5', borderRadius: '8px' }}>
-                       <Text style={{ fontSize: '12px', color: '#666', fontWeight: 'bold' }}>
-                         🔧 Tùy chọn nâng cao (không bắt buộc)
-                       </Text>
-                       
-                       <Row gutter={16} style={{ marginTop: '12px' }}>
-                         <Col span={12}>
-                           <Form.Item
-                             {...restField}
-                             name={[name, 'dayTitle']}
-                             label={<span style={{ fontSize: '12px', color: '#666' }}>📅 Tiêu đề ngày</span>}
-                           >
-                             <Input
-                               placeholder="VD: NGÀY 1"
-                               size="small"
-                               style={{ borderRadius: '4px' }}
-                             />
-                           </Form.Item>
-                         </Col>
-                         <Col span={12}>
-                           <Form.Item
-                             {...restField}
-                             name={[name, 'periodTitle']}
-                             label={<span style={{ fontSize: '12px', color: '#666' }}>🌅 Thời gian</span>}
-                           >
-                             <Input
-                               placeholder="VD: Sáng:, Chiều:"
-                               size="small"
-                               style={{ borderRadius: '4px' }}
-                             />
-                           </Form.Item>
-                         </Col>
-                       </Row>
+            {/* Chính sách */}
+            <Form.Item
+              name="policies"
+              label="📋 Chính sách"
+              rules={[{ required: true, message: 'Vui lòng nhập chính sách!' }]}
+            >
+              <TextArea 
+                rows={4}
+                placeholder={`Mỗi dòng là một điều khoản/chính sách
+VD:
+- Trẻ em dưới 5 tuổi miễn phí
+- Trẻ em từ 5-9 tuổi: 50% giá tour
+- Hủy tour trước 3 ngày hoàn 100%
+- Thời tiết xấu có thể thay đổi lịch trình`}
+                style={{ fontSize: '14px', lineHeight: '1.6' }}
+              />
+            </Form.Item>
 
-                       <Row gutter={16}>
-                         <Col span={16}>
-                           <Form.Item
-                             {...restField}
-                             name={[name, 'locationTitle']}
-                             label={<span style={{ fontSize: '12px', color: '#666' }}>📍 Địa điểm</span>}
-                           >
-                             <Input
-                               placeholder="VD: Tháp Đôi:"
-                               size="small"
-                               style={{ borderRadius: '4px' }}
-                             />
-                           </Form.Item>
-                         </Col>
-                         <Col span={8}>
-                           <Form.Item
-                             {...restField}
-                             name={[name, 'imageCaption']}
-                             label={<span style={{ fontSize: '12px', color: '#666' }}>💬 Chú thích</span>}
-                           >
-                             <Input
-                               placeholder="Chú thích hình ảnh"
-                               size="small"
-                               style={{ borderRadius: '4px' }}
-                             />
-                           </Form.Item>
-                         </Col>
-                       </Row>
-                     </div>
-                    </Card>
-                  ))}
-                  
-                  <Form.Item>
-                    <Button
-                      type="dashed"
-                      onClick={() => add()}
-                      block
-                      icon={<PlusOutlined />}
-                      style={{ 
-                        height: '50px',
-                        borderRadius: '8px',
-                        border: '2px dashed #1890ff',
-                        color: '#1890ff',
-                        fontWeight: 'bold'
-                      }}
-                    >
-                      ➕ Thêm hoạt động mới
-                    </Button>
-                  </Form.Item>
-                </>
-              )}
-            </Form.List>
-          </Form.Item>
-
-          <Divider orientation="left" style={{ color: '#1890ff', fontWeight: 'bold' }}>
-            💼 Dịch vụ và chính sách
-          </Divider>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="includedServices"
-                label={<span style={{ fontWeight: 'bold', color: '#333' }}>✅ Dịch vụ bao gồm</span>}
-                rules={[{ required: true, message: 'Vui lòng nhập dịch vụ bao gồm!' }]}
-              >
-                <TextArea 
-                  rows={5} 
-                  placeholder="Mỗi dòng là một dịch vụ được bao gồm&#10;VD:&#10;- Vé tham quan các điểm du lịch&#10;- HDV chuyên nghiệp&#10;- Bảo hiểm du lịch"
-                  style={{ borderRadius: '6px' }}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="excludedServices"
-                label={<span style={{ fontWeight: 'bold', color: '#333' }}>❌ Dịch vụ không bao gồm</span>}
-                rules={[{ required: true, message: 'Vui lòng nhập dịch vụ không bao gồm!' }]}
-              >
-                <TextArea 
-                  rows={5} 
-                  placeholder="Mỗi dòng là một dịch vụ không được bao gồm&#10;VD:&#10;- Vé máy bay khứ hồi&#10;- Chi phí cá nhân&#10;- Thuế VAT"
-                  style={{ borderRadius: '6px' }}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item
-            name="policies"
-            label={<span style={{ fontWeight: 'bold', color: '#333' }}>📋 Chính sách và điều khoản</span>}
-            rules={[{ required: true, message: 'Vui lòng nhập chính sách!' }]}
-          >
-            <TextArea 
-              rows={5} 
-              placeholder="Mỗi dòng là một điều khoản/chính sách&#10;VD:&#10;- Trẻ em dưới 5 tuổi miễn phí&#10;- Hủy tour trước 3 ngày hoàn 100%&#10;- Thời tiết xấu có thể thay đổi lịch trình"
-              style={{ borderRadius: '6px' }}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="gallery"
-            label={<span style={{ fontWeight: 'bold', color: '#333' }}>🖼️ Thư viện hình ảnh (tùy chọn)</span>}
-          >
-            <TextArea 
-              rows={3} 
-              placeholder="Mỗi dòng là một URL hình ảnh&#10;VD:&#10;https://example.com/image1.jpg&#10;https://example.com/image2.jpg"
-              style={{ borderRadius: '6px' }}
-            />
-          </Form.Item>
+            {/* Thư viện hình ảnh */}
+            <Form.Item
+              name="gallery"
+              label="🖼️ Thư viện hình ảnh (tùy chọn)"
+            >
+              <ImageUpload 
+                maxCount={10}
+                placeholder="Upload hình ảnh cho tour"
+              />
+            </Form.Item>
+          </Card>
         </Form>
       </Modal>
     </Layout>
