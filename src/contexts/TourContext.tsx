@@ -19,13 +19,13 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const [tours, setTours] = useState<TourItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const refreshTours = () => {
+  const refreshTours = async () => {
     setLoading(true);
     try {
-      const savedTours = TourDataManager.loadTours();
-      console.log('RefreshTours - Loaded tours from localStorage:', savedTours.length);
+      const savedTours = await TourDataManager.loadTours();
+      console.log('RefreshTours - Loaded tours:', savedTours.length);
       
-      // Always use tours from localStorage, even if empty
+      // Always use tours from storage, even if empty
       // This allows users to delete all tours if they want
       setTours(savedTours);
     } catch (error) {
@@ -37,24 +37,24 @@ export function TourProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const addTour = (tour: TourItem) => {
-    TourDataManager.addTour(tour);
+  const addTour = async (tour: TourItem) => {
+    await TourDataManager.addTour(tour);
     setTours(prev => [...prev, tour]);
     // Notify other components
     window.dispatchEvent(new CustomEvent('tourChanged'));
   };
 
-  const updateTour = (tour: TourItem) => {
-    TourDataManager.updateTour(tour);
+  const updateTour = async (tour: TourItem) => {
+    await TourDataManager.updateTour(tour);
     setTours(prev => prev.map(t => t.id === tour.id ? tour : t));
     // Notify other components
     window.dispatchEvent(new CustomEvent('tourChanged'));
   };
 
-  const deleteTour = (id: string) => {
+  const deleteTour = async (id: string) => {
     console.log('TourContext - Deleting tour with id:', id);
     console.log('TourContext - Tours before deletion:', tours.length);
-    TourDataManager.deleteTour(id);
+    await TourDataManager.deleteTour(id);
     setTours(prev => {
       const filtered = prev.filter(t => t.id !== id);
       console.log('TourContext - Tours after deletion:', filtered.length);
@@ -64,10 +64,10 @@ export function TourProvider({ children }: { children: ReactNode }) {
     window.dispatchEvent(new CustomEvent('tourChanged'));
   };
 
-  const forceRefresh = () => {
+  const forceRefresh = async () => {
     // Force reload from default tours (useful for development)
     setTours(defaultTours);
-    TourDataManager.saveTours(defaultTours);
+    await TourDataManager.saveTours(defaultTours);
     window.dispatchEvent(new CustomEvent('tourChanged'));
   };
 
@@ -76,10 +76,10 @@ export function TourProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Always load from localStorage, never auto-initialize with default tours
+    // Always load from storage, never auto-initialize with default tours
     refreshTours();
 
-    // Listen for storage changes from other tabs/windows
+    // Listen for storage changes from other tabs/windows (for localStorage fallback)
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'travel_tours_data' && e.newValue !== e.oldValue) {
         console.log('Storage change detected, refreshing tours...');

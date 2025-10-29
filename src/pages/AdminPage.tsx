@@ -302,8 +302,8 @@ export default function AdminPage() {
     }
   };
 
-  const handleExport = () => {
-    const data = TourDataManager.exportTours();
+  const handleExport = async () => {
+    const data = await TourDataManager.exportTours();
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -316,12 +316,12 @@ export default function AdminPage() {
     message.success('Xuất dữ liệu thành công!');
   };
 
-  const handleImport = (file: File) => {
+  const handleImport = async (file: File) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const content = e.target?.result as string;
-      if (TourDataManager.importTours(content)) {
-        refreshTours(); // Refresh tours from context
+      if (await TourDataManager.importTours(content)) {
+        await refreshTours(); // Refresh tours from context
         message.success('Nhập dữ liệu thành công!');
       } else {
         message.error('File không hợp lệ!');
@@ -500,8 +500,8 @@ export default function AdminPage() {
                 </Upload>
                 <Button 
                   icon={<ReloadOutlined />}
-                  onClick={() => {
-                    refreshTours();
+                  onClick={async () => {
+                    await refreshTours();
                     message.success('Đã làm mới dữ liệu!');
                   }}
                   size="large"
@@ -510,10 +510,9 @@ export default function AdminPage() {
                 </Button>
                 <Button 
                   icon={<DeleteOutlined />}
-                  onClick={() => {
-                    localStorage.removeItem('travel_tours_data');
-                    localStorage.removeItem('tours');
-                    refreshTours();
+                  onClick={async () => {
+                    await TourDataManager.clearAllTours();
+                    await refreshTours();
                     message.success('Đã xóa tất cả dữ liệu tour!');
                   }}
                   size="large"
@@ -523,9 +522,9 @@ export default function AdminPage() {
                 </Button>
                 <Button 
                   icon={<PlusOutlined />}
-                  onClick={() => {
-                    TourDataManager.saveTours(tours);
-                    refreshTours();
+                  onClick={async () => {
+                    await TourDataManager.saveTours(tours);
+                    await refreshTours();
                     message.success('Đã khởi tạo dữ liệu mặc định!');
                   }}
                   size="large"

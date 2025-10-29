@@ -1,20 +1,66 @@
 import { TourItem } from './tours';
+import { TourFirestore } from '../services/tourFirestore';
 
-// Simple localStorage-based data management
+// Hybrid data manager: Uses Firestore when available, falls back to localStorage
 export class TourDataManager {
   private static STORAGE_KEY = 'travel_tours_data';
+  private static useFirestore = false;
 
-  static saveTours(tours: TourItem[]): void {
+  /**
+   * Check if Firestore is configured and use it
+   */
+  private static isFirestoreEnabled(): boolean {
     try {
-      console.log('Saving tours to localStorage:', tours.length);
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(tours));
-      console.log('Tours saved successfully to localStorage');
-    } catch (error) {
-      console.error('Error saving tours:', error);
+      const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+      const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+      
+      // Only use Firestore if API key is not the demo key
+      if (apiKey && apiKey !== 'demo-key' && projectId && projectId !== 'travel-app') {
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
     }
   }
 
-  static loadTours(): TourItem[] {
+  static async saveTours(tours: TourItem[]): Promise<void> {
+    if (this.isFirestoreEnabled()) {
+      try {
+        await TourFirestore.saveTours(tours);
+      } catch (error) {
+        console.error('Failed to save to Firestore, falling back to localStorage:', error);
+        this.saveToursLocal(tours);
+      }
+    } else {
+      this.saveToursLocal(tours);
+    }
+  }
+
+  private static saveToursLocal(tours: TourItem[]): void {
+    try {
+      console.log('💾 Saving tours to localStorage:', tours.length);
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(tours));
+      console.log('✅ Tours saved successfully to localStorage');
+    } catch (error) {
+      console.error('❌ Error saving tours:', error);
+    }
+  }
+
+  static async loadTours(): Promise<TourItem[]> {
+    if (this.isFirestoreEnabled()) {
+      try {
+        return await TourFirestore.loadTours();
+      } catch (error) {
+        console.error('Failed to load from Firestore, falling back to localStorage:', error);
+        return this.loadToursLocal();
+      }
+    } else {
+      return this.loadToursLocal();
+    }
+  }
+
+  private static loadToursLocal(): TourItem[] {
     try {
       // Migrate legacy storage key if needed
       const legacy = localStorage.getItem('tours');
@@ -27,73 +73,190 @@ export class TourDataManager {
         return JSON.parse(data);
       }
     } catch (error) {
-      console.error('Error loading tours:', error);
+      console.error('❌ Error loading tours:', error);
     }
     return [];
   }
 
-  static addTour(tour: TourItem): void {
-    const tours = this.loadTours();
-    tours.push(tour);
-    this.saveTours(tours);
-  }
-
-  static updateTour(updatedTour: TourItem): void {
-    const tours = this.loadTours();
-    const index = tours.findIndex(tour => tour.id === updatedTour.id);
-    if (index !== -1) {
-      tours[index] = updatedTour;
-      this.saveTours(tours);
+  static async addTour(tour: TourItem): Promise<void> {
+    if (this.isFirestoreEnabled()) {
+      try {
+        await TourFirestore.addTour(tour);
+      } catch (error) {
+        console.error('Failed to add to Firestore, falling back to localStorage:', error);
+        this.addTourLocal(tour);
+      }
+    } else {
+      this.addTourLocal(tour);
     }
   }
 
-  static deleteTour(tourId: string): void {
-    const tours = this.loadTours();
-    console.log('Tours before deletion:', tours.length);
-    const filteredTours = tours.filter(tour => tour.id !== tourId);
-    console.log('Tours after deletion:', filteredTours.length);
-    this.saveTours(filteredTours);
-    console.log('Tour deleted successfully from localStorage');
+  private static addTourLocal(tour: TourItem): void {
+    const tours = this.loadToursLocal();
+    tours.push(tour);
+    this.saveToursLocal(tours);
   }
 
-  static getTourById(id: string): TourItem | undefined {
-    const tours = this.loadTours();
+  static async updateTour(updatedTour: TourItem): Promise<void> {
+    if (this.isFirestoreEnabled()) {
+      try {
+        await TourFirestore.updateTour(updatedTour);
+      } catch (error) {
+        console.error('Failed to update in Firestore, falling back to localStorage:', error);
+        this.updateTourLocal(updatedTour);
+      }
+    } else {
+      this.updateTourLocal(updatedTour);
+    }
+  }
+
+  private static updateTourLocal(updatedTour: TourItem): void {
+    const tours = this.loadToursLocal();
+    const index = tours.findIndex(tour => tour.id === updatedTour.id);
+    if (index !== -1) {
+      tours[index] = updatedTour;
+      this.saveToursLocal(tours);
+    }
+  }
+
+  static async deleteTour(tourId: string): Promise<void> {
+    if (this.isFirestoreEnabled()) {
+      try {
+        await TourFirestore.deleteTour(tourId);
+      } catch (error) {
+        console.error('Failed to delete from Firestore, falling back to localStorage:', error);
+        this.deleteTourLocal(tourId);
+      }
+    } else {
+      this.deleteTourLocal(tourId);
+    }
+  }
+
+  private static deleteTourLocal(tourId: string): void {
+    const tours = this.loadToursLocal();
+    console.log('🗑️ Tours before deletion:', tours.length);
+    const filteredTours = tours.filter(tour => tour.id !== tourId);
+    console.log('✅ Tours after deletion:', filteredTours.length);
+    this.saveToursLocal(filteredTours);
+    console.log('✅ Tour deleted successfully from localStorage');
+  }
+
+  static async getTourById(id: string): Promise<TourItem | undefined> {
+    if (this.isFirestoreEnabled()) {
+      try {
+        return await TourFirestore.getTourById(id);
+      } catch (error) {
+        console.error('Failed to get from Firestore, falling back to localStorage:', error);
+        return this.getTourByIdLocal(id);
+      }
+    } else {
+      return this.getTourByIdLocal(id);
+    }
+  }
+
+  private static getTourByIdLocal(id: string): TourItem | undefined {
+    const tours = this.loadToursLocal();
     return tours.find(tour => tour.id === id);
   }
 
-  static getTourBySlug(slug: string): TourItem | undefined {
-    const tours = this.loadTours();
+  static async getTourBySlug(slug: string): Promise<TourItem | undefined> {
+    if (this.isFirestoreEnabled()) {
+      try {
+        return await TourFirestore.getTourBySlug(slug);
+      } catch (error) {
+        console.error('Failed to get from Firestore, falling back to localStorage:', error);
+        return this.getTourBySlugLocal(slug);
+      }
+    } else {
+      return this.getTourBySlugLocal(slug);
+    }
+  }
+
+  private static getTourBySlugLocal(slug: string): TourItem | undefined {
+    const tours = this.loadToursLocal();
     return tours.find(tour => tour.slug === slug);
   }
 
-  static getAllTours(): TourItem[] {
-    return this.loadTours();
+  static async getAllTours(): Promise<TourItem[]> {
+    return await this.loadTours();
   }
 
-  static exportTours(): string {
-    const tours = this.loadTours();
+  static async exportTours(): Promise<string> {
+    if (this.isFirestoreEnabled()) {
+      try {
+        return await TourFirestore.exportTours();
+      } catch (error) {
+        console.error('Failed to export from Firestore, falling back to localStorage:', error);
+        return this.exportToursLocal();
+      }
+    } else {
+      return this.exportToursLocal();
+    }
+  }
+
+  private static exportToursLocal(): string {
+    const tours = this.loadToursLocal();
     return JSON.stringify(tours, null, 2);
   }
 
-  static importTours(jsonData: string): boolean {
+  static async importTours(jsonData: string): Promise<boolean> {
+    if (this.isFirestoreEnabled()) {
+      try {
+        return await TourFirestore.importTours(jsonData);
+      } catch (error) {
+        console.error('Failed to import to Firestore, falling back to localStorage:', error);
+        return this.importToursLocal(jsonData);
+      }
+    } else {
+      return this.importToursLocal(jsonData);
+    }
+  }
+
+  private static importToursLocal(jsonData: string): boolean {
     try {
       const tours = JSON.parse(jsonData);
       if (Array.isArray(tours)) {
-        this.saveTours(tours);
+        this.saveToursLocal(tours);
         return true;
       }
     } catch (error) {
-      console.error('Error importing tours:', error);
+      console.error('❌ Error importing tours:', error);
     }
     return false;
   }
 
-  static clearAllTours(): void {
+  static async clearAllTours(): Promise<void> {
+    if (this.isFirestoreEnabled()) {
+      try {
+        await TourFirestore.clearAllTours();
+      } catch (error) {
+        console.error('Failed to clear from Firestore, falling back to localStorage:', error);
+        this.clearAllToursLocal();
+      }
+    } else {
+      this.clearAllToursLocal();
+    }
+  }
+
+  private static clearAllToursLocal(): void {
     localStorage.removeItem(this.STORAGE_KEY);
   }
 
-  static getToursByRegion(region: string): TourItem[] {
-    const tours = this.loadTours();
+  static async getToursByRegion(region: string): Promise<TourItem[]> {
+    if (this.isFirestoreEnabled()) {
+      try {
+        return await TourFirestore.getToursByRegion(region);
+      } catch (error) {
+        console.error('Failed to get from Firestore, falling back to localStorage:', error);
+        return this.getToursByRegionLocal(region);
+      }
+    } else {
+      return this.getToursByRegionLocal(region);
+    }
+  }
+
+  private static getToursByRegionLocal(region: string): TourItem[] {
+    const tours = this.loadToursLocal();
     return tours.filter(tour => tour.region === region);
   }
 }
