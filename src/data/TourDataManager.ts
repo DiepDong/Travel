@@ -11,14 +11,24 @@ export class TourDataManager {
    */
   private static isFirestoreEnabled(): boolean {
     try {
-      const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
-      const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+      // Check if Firebase config has valid credentials
+      // firebase.ts has hardcoded fallback values, so Firestore should always work
+      // Only disable if explicitly in localStorage-only mode
       
-      // Only use Firestore if API key is not the demo key
-      if (apiKey && apiKey !== 'demo-key' && projectId && projectId !== 'travel-app') {
+      const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+      
+      // If no env var, firebase.ts will use hardcoded fallback, so allow Firestore
+      // If env var exists, check if it's valid Firebase key
+      if (!apiKey) {
+        // No env, but firebase.ts has hardcoded credentials, so allow
         return true;
       }
-      return false;
+      
+      // Has env var - check if it's valid
+      const isDemoKey = apiKey === 'demo-key';
+      const isValid = apiKey.includes('AIza'); // Firebase API keys start with AIza
+      
+      return !isDemoKey && isValid;
     } catch {
       return false;
     }

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Upload, Button, Image, Modal, message } from 'antd';
+import { Upload, Button, Image, Modal, message, Progress } from 'antd';
 import { UploadOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
+import { storage } from '../services/firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
 interface ImageUploadProps {
   value?: string[];
@@ -18,6 +20,8 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewImage, setPreviewImage] = useState('');
   const [urlInput, setUrlInput] = useState('');
+  const [uploadPercent, setUploadPercent] = useState<number>(0);
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleAddUrl = () => {
     if (urlInput.trim() && value.length < maxCount) {
@@ -44,22 +48,47 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   const uploadProps = {
     name: 'file',
     multiple: true,
-    action: 'https://httpbin.org/post', // Mock upload endpoint
     beforeUpload: (file: File) => {
-      // Convert file to data URL for preview
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUrl = e.target?.result as string;
-        if (value.length < maxCount) {
-          const newUrls = [...value, dataUrl];
-          onChange?.(newUrls);
-          message.success('Upload hình ảnh thành công!');
-        } else {
-          message.warning(`Tối đa ${maxCount} hình ảnh!`);
-        }
-      };
-      reader.readAsDataURL(file);
-      return false; // Prevent actual upload
+      if (value.length >= maxCount) {
+        message.warning(`Tối đa ${maxCount} hình ảnh!`);
+        return Upload.LIST_IGNORE as unknown as boolean;
+      }
+      // Validate type
+      const isImage = file.type.startsWith('image/');
+      if (!isImage) {
+        message.error('Chỉ hỗ trợ file hình ảnh.');
+        return Upload.LIST_IGNORE as unknown as boolean;
+      }
+      // Validate size (<= 5MB)
+      const isLt5M = file.size / 1024 / 1024 <= 5;
+      if (!isLt5M) {
+        message.error('Kích thước ảnh tối đa 5MB.');
+        return Upload.LIST_IGNORE as unknown as boolean;
+      }
+
+      // Upload to Firebase Storage
+      const filePath = `tours/${Date.now()}_${file.name}`;
+      const storageRef = ref(storage, filePath);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      setIsUploading(true);
+      uploadTask.on('state_changed', (snapshot) => {
+        const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+        setUploadPercent(progress);
+      }, (error) => {
+        console.error('Upload error:', error);
+        message.error('Upload thất bại.');
+        setIsUploading(false);
+      }, async () => {
+        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+        const newUrls = [...value, downloadURL];
+        onChange?.(newUrls);
+        message.success('Upload hình ảnh thành công!');
+        setIsUploading(false);
+        setUploadPercent(0);
+      });
+
+      return Upload.LIST_IGNORE as unknown as boolean; // prevent default upload
     },
     showUploadList: false,
   };
@@ -94,10 +123,15 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
         
         {/* File Upload */}
         <Upload {...uploadProps}>
-          <Button icon={<UploadOutlined />} disabled={value.length >= maxCount}>
-            Upload File ({value.length}/{maxCount})
+          <Button icon={<UploadOutlined />} disabled={value.length >= maxCount || isUploading}>
+            {isUploading ? 'Đang upload...' : `Upload File (${value.length}/${maxCount})`}
           </Button>
         </Upload>
+        {isUploading && (
+          <div style={{ marginTop: 8 }}>
+            <Progress percent={uploadPercent} size="small" />
+          </div>
+        )}
       </div>
 
       {/* Image Grid */}

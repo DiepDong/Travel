@@ -76,6 +76,11 @@ export function TourProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // Debug: Check Firebase configuration
+    if (import.meta.env.DEV) {
+      import('../utils/firebaseDebug').then(({ runDiagnostic }) => runDiagnostic());
+    }
+    
     // Always load from storage, never auto-initialize with default tours
     refreshTours();
 

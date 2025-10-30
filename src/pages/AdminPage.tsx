@@ -1,6 +1,7 @@
-import { Layout, Menu, Card, Button, Table, Space, Tag, Modal, Form, Input, Select, Upload, message, Popconfirm, Typography, Row, Col, Divider, UploadProps, TimePicker, Tabs, Tooltip } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, UploadOutlined, SaveOutlined, CloseOutlined, DownloadOutlined, ImportOutlined, MinusCircleOutlined, ReloadOutlined, FileTextOutlined, CameraOutlined, BoldOutlined, ItalicOutlined, UnorderedListOutlined, OrderedListOutlined, AlignLeftOutlined, AlignCenterOutlined, AlignRightOutlined, LinkOutlined, PictureOutlined, SettingOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
+import { Layout, Menu, Card, Button, Table, Space, Tag, Modal, Form, Input, Select, Upload, message, Popconfirm, Typography, Row, Col, Divider, UploadProps, TimePicker, Tabs, Tooltip, Alert } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, UploadOutlined, SaveOutlined, CloseOutlined, DownloadOutlined, ImportOutlined, MinusCircleOutlined, ReloadOutlined, FileTextOutlined, CameraOutlined, BoldOutlined, ItalicOutlined, UnorderedListOutlined, OrderedListOutlined, AlignLeftOutlined, AlignCenterOutlined, AlignRightOutlined, LinkOutlined, PictureOutlined, SettingOutlined, MenuFoldOutlined, MenuUnfoldOutlined, BugOutlined } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
+import { checkFirestoreStatus, checkCurrentStorage, runDiagnostic } from '../utils/firebaseDebug';
 import { tours, TourItem, ItineraryItem, ItineraryEntry } from '../data/tours';
 import { TourDataManager } from '../data/TourDataManager';
 import { useTours } from '../contexts/TourContext';
@@ -20,6 +21,8 @@ export default function AdminPage() {
   const [form] = Form.useForm();
   const [collapsed, setCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState('visual');
+  const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [showDebugModal, setShowDebugModal] = useState(false);
 
   const columns = [
     {
@@ -330,6 +333,21 @@ export default function AdminPage() {
     reader.readAsText(file);
   };
 
+  const handleDebugCheck = () => {
+    runDiagnostic();
+    const firestore = checkFirestoreStatus();
+    const storage = checkCurrentStorage();
+    setDebugInfo({ firestore, storage });
+    setShowDebugModal(true);
+  };
+
+  useEffect(() => {
+    // Show initial debug info
+    const firestore = checkFirestoreStatus();
+    const storage = checkCurrentStorage();
+    setDebugInfo({ firestore, storage });
+  }, []);
+
   const uploadProps: UploadProps = {
     beforeUpload: (file) => {
       handleImport(file);
@@ -531,6 +549,14 @@ export default function AdminPage() {
                   type="default"
                 >
                   Khởi tạo dữ liệu mặc định
+                </Button>
+                <Button 
+                  icon={<BugOutlined />}
+                  onClick={handleDebugCheck}
+                  size="large"
+                  type="default"
+                >
+                  🔍 Kiểm tra Firebase
                 </Button>
                 <Button 
                   type="primary" 
@@ -774,6 +800,76 @@ VD:
             </Form.Item>
           </Card>
         </Form>
+      </Modal>
+
+      {/* Debug Modal */}
+      <Modal
+        title="🔍 Firebase Debug Information"
+        open={showDebugModal}
+        onCancel={() => setShowDebugModal(false)}
+        onOk={() => setShowDebugModal(false)}
+        width={800}
+      >
+        {debugInfo && (
+          <div>
+            <Alert
+              message={debugInfo.firestore.isConfigured ? "✅ Firebase đã được cấu hình" : "⚠️ Firebase chưa được cấu hình"}
+              description={debugInfo.firestore.isConfigured 
+                ? "App đang sử dụng Firestore để lưu trữ. Dữ liệu sẽ đồng bộ giữa các máy."
+                : "App đang sử dụng localStorage. Dữ liệu KHÔNG đồng bộ giữa các máy."}
+              type={debugInfo.firestore.isConfigured ? "success" : "warning"}
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+            
+            <Title level={4}>Firestore Status</Title>
+            <Row gutter={16} style={{ marginBottom: 16 }}>
+              <Col span={12}>
+                <Text strong>Configured:</Text> {debugInfo.firestore.isConfigured ? "✅ Yes" : "❌ No"}
+              </Col>
+              <Col span={12}>
+                <Text strong>Using Firestore:</Text> {debugInfo.firestore.usingFirestore ? "✅ Yes" : "❌ No"}
+              </Col>
+              <Col span={24}>
+                <Text strong>Reason:</Text> {debugInfo.firestore.reason}
+              </Col>
+            </Row>
+
+            <Title level={4}>LocalStorage Status</Title>
+            <Row gutter={16} style={{ marginBottom: 16 }}>
+              <Col span={12}>
+                <Text strong>Has Data:</Text> {debugInfo.storage.hasLocalStorage ? "✅ Yes" : "❌ No"}
+              </Col>
+              <Col span={12}>
+                <Text strong>Tours Count:</Text> {debugInfo.storage.localStorageCount}
+              </Col>
+            </Row>
+
+            {!debugInfo.firestore.isConfigured && (
+              <Alert
+                message="Cần thêm Environment Variables vào Vercel"
+                description={
+                  <div>
+                    <p>1. Vào Vercel Dashboard → Settings → Environment Variables</p>
+                    <p>2. Thêm các biến sau:</p>
+                    <ul>
+                      <li>VITE_FIREBASE_API_KEY</li>
+                      <li>VITE_FIREBASE_AUTH_DOMAIN</li>
+                      <li>VITE_FIREBASE_PROJECT_ID</li>
+                      <li>VITE_FIREBASE_STORAGE_BUCKET</li>
+                      <li>VITE_FIREBASE_MESSAGING_SENDER_ID</li>
+                      <li>VITE_FIREBASE_APP_ID</li>
+                    </ul>
+                    <p>3. Redeploy project</p>
+                    <p>Xem chi tiết: <a href="/VERCEL_DEPLOY.md" target="_blank">VERCEL_DEPLOY.md</a></p>
+                  </div>
+                }
+                type="error"
+                showIcon
+              />
+            )}
+          </div>
+        )}
       </Modal>
     </Layout>
   );
